@@ -1,0 +1,449 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Arithmetic Unit — 8-bit ALU Simulator</title>
+  <link rel="stylesheet" href="style.css">
+  <script src="theme.js"></script>
+</head>
+<body>
+
+  <!-- =========================================================================
+       NAVIGATION BAR
+       ========================================================================= -->
+  <nav class="site-nav">
+    <div class="nav-container">
+      <a href="index.html" class="brand-link">
+        <svg class="brand-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="15 18 9 12 15 6"></polyline>
+        </svg>
+        <span class="brand-name">8-bit ALU Simulator</span>
+      </a>
+
+      <div class="nav-right">
+        <div class="nav-links">
+          <a href="index.html" class="nav-item">Home</a>
+          <a href="arithmetic.html" class="nav-item active">Arithmetic Unit</a>
+          <a href="logic.html" class="nav-item">Logic &amp; Shift Unit</a>
+        </div>
+
+        <button type="button" class="theme-toggle-btn" aria-label="Toggle theme" title="Toggle theme">
+          <!-- Populated by theme.js -->
+        </button>
+      </div>
+    </div>
+  </nav>
+
+  <!-- =========================================================================
+       ARITHMETIC UNIT SIMULATOR WORKSPACE
+       ========================================================================= -->
+  <main class="sim-container">
+
+    <header class="sim-page-header">
+      <h1>Arithmetic Unit Simulator</h1>
+      <p>Configure operands and arithmetic operation via popup, then observe the internal hardware computation flow.</p>
+    </header>
+
+    <div class="sim-grid-layout">
+
+      <!-- =====================================================================
+           LEFT COLUMN: POPUP LAUNCHER & SIMULATION CONTROLS
+           ===================================================================== -->
+      <aside class="sim-left-panel">
+        
+        <!-- Main Simulation Trigger Button: Reopen popup anytime -->
+        <button type="button" class="btn-cta-main" id="btnStartAluModal">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+            <rect x="3" y="3" width="18" height="18" rx="3"></rect>
+            <path d="M8 12h8"></path>
+            <path d="M12 8v8"></path>
+          </svg>
+          Enter Registers &amp; Select Operation
+        </button>
+
+        <!-- Current Latched Configuration Card -->
+        <div class="sim-panel">
+          <div class="panel-header-title">
+            <span>Latched Configuration</span>
+            <button type="button" class="btn btn-secondary btn-sm" id="btnConfigureAlu" title="Reopen configuration popup">Configure ALU</button>
+          </div>
+
+          <div class="latched-display-card">
+            <div class="latched-reg-row">
+              <span class="latched-reg-lbl">Register A [7:0]</span>
+              <div class="latched-reg-values">
+                <span class="latched-dec" id="displayValA">0</span>
+                <span class="latched-bin" id="displayBinA">00000000</span>
+              </div>
+            </div>
+
+            <div class="latched-reg-row">
+              <span class="latched-reg-lbl">Register B [7:0]</span>
+              <div class="latched-reg-values">
+                <span class="latched-dec" id="displayValB">0</span>
+                <span class="latched-bin" id="displayBinB">00000000</span>
+              </div>
+            </div>
+
+            <div class="latched-reg-row">
+              <span class="latched-reg-lbl">Operation</span>
+              <span class="latched-op-pill" id="displayOpPill">000: ADD — A + B</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Simulation Sequencer Controls -->
+        <div class="sim-panel">
+          <div class="panel-header-title">
+            <span>Sequencer Controls</span>
+          </div>
+          <div class="controls-grid">
+            <button type="button" class="btn btn-primary btn-sm" id="btnStepForward" title="Advance by one micro-operation stage">
+              Step Forward &rarr;
+            </button>
+            <button type="button" class="btn btn-secondary btn-sm" id="btnPauseResume" title="Pause or Resume automated run" disabled>
+              Pause
+            </button>
+            <button type="button" class="btn btn-secondary btn-span-2" id="btnRunAll" title="Execute all 6 stages smoothly at readable pace">
+              Run All (Auto Sequence)
+            </button>
+            <button type="button" class="btn btn-secondary btn-span-2" id="btnReset" title="Reset simulator to clean initial state">
+              Reset
+            </button>
+          </div>
+        </div>
+
+      </aside>
+
+      <!-- =====================================================================
+           RIGHT COLUMN: DEDICATED ARITHMETIC DIAGRAM, STEPPER, RESULTS
+           ===================================================================== -->
+      <section class="sim-right-panel">
+
+        <!-- DEDICATED ARITHMETIC HARDWARE BLOCK DIAGRAM (SVG) -->
+        <div class="schematic-box">
+          <div class="schematic-top-bar">
+            <h2>8-bit Arithmetic Unit Circuit &amp; Signal Flow</h2>
+            <span class="schematic-badge" id="schematicBadge">OPCODE: 000 (ADD)</span>
+          </div>
+
+          <div class="svg-canvas-container">
+            <svg id="arithmeticSvg" class="dedicated-svg" viewBox="0 0 830 330" preserveAspectRatio="xMidYMid meet">
+              <defs>
+                <marker id="arr-idle" viewBox="0 0 10 10" refX="7" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+                  <path d="M 0 1 L 9 5 L 0 9 z" fill="var(--wire-idle)" />
+                </marker>
+                <marker id="arr-active" viewBox="0 0 10 10" refX="7" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+                  <path d="M 0 1 L 9 5 L 0 9 z" fill="var(--wire-active)" />
+                </marker>
+                <marker id="arr-ctrl" viewBox="0 0 10 10" refX="7" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+                  <path d="M 0 1 L 9 5 L 0 9 z" fill="var(--wire-ctrl)" />
+                </marker>
+              </defs>
+
+              <!-- Register A -->
+              <g id="svgBlockA">
+                <rect x="30" y="40" width="130" height="55" rx="8" class="svg-block-card"/>
+                <text x="95" y="64" text-anchor="middle" font-family="var(--font-sans)" font-size="12" font-weight="700" fill="var(--text-main)">Register A [7:0]</text>
+                <text x="95" y="82" text-anchor="middle" font-family="var(--font-mono)" font-size="12" font-weight="700" fill="var(--secondary)" id="svgValA">0 (0x00)</text>
+              </g>
+
+              <!-- Register B -->
+              <g id="svgBlockB">
+                <rect x="30" y="145" width="130" height="55" rx="8" class="svg-block-card"/>
+                <text x="95" y="169" text-anchor="middle" font-family="var(--font-sans)" font-size="12" font-weight="700" fill="var(--text-main)">Register B [7:0]</text>
+                <text x="95" y="187" text-anchor="middle" font-family="var(--font-mono)" font-size="12" font-weight="700" fill="var(--secondary)" id="svgValB">0 (0x00)</text>
+              </g>
+
+              <!-- Opcode / Control Decoder -->
+              <g id="svgBlockDecoder">
+                <rect x="30" y="245" width="160" height="55" rx="8" class="svg-block-card"/>
+                <text x="110" y="268" text-anchor="middle" font-family="var(--font-sans)" font-size="11" font-weight="700" fill="var(--text-main)">Opcode Decoder [2:0]</text>
+                <text x="110" y="286" text-anchor="middle" font-family="var(--font-mono)" font-size="11" font-weight="700" fill="var(--primary)" id="svgOpcodeText">OP = 000 (ADD)</text>
+              </g>
+
+              <!-- Dedicated 8-bit Arithmetic Unit (Adder/Subtractor) -->
+              <g id="svgBlockArith" class="svg-active-unit">
+                <rect x="270" y="60" width="220" height="120" rx="10" class="svg-block-card"/>
+                <text x="380" y="92" text-anchor="middle" font-family="var(--font-sans)" font-size="13" font-weight="800" fill="var(--text-main)">8-BIT ARITHMETIC UNIT</text>
+                <text x="380" y="112" text-anchor="middle" font-family="var(--font-mono)" font-size="11" fill="var(--text-muted)">Adder / Subtractor Core</text>
+                <text x="380" y="132" text-anchor="middle" font-family="var(--font-mono)" font-size="10" fill="var(--text-subtle)">2's Complement Logic (A + ~B + 1)</text>
+                <text x="380" y="156" text-anchor="middle" font-family="var(--font-mono)" font-size="12" font-weight="800" fill="var(--secondary)" id="svgArithOpTitle">SUM = 0 | Cout=0</text>
+              </g>
+
+              <!-- Result Selection Multiplexer -->
+              <g id="svgBlockMux">
+                <polygon points="560,70 610,95 610,165 560,190" class="svg-block-card"/>
+                <text x="585" y="135" text-anchor="middle" font-family="var(--font-sans)" font-size="9" font-weight="800" fill="var(--text-main)" transform="rotate(-90 585 135)">MUX</text>
+              </g>
+
+              <!-- Result Register [ACC] -->
+              <g id="svgBlockRegResult">
+                <rect x="670" y="55" width="135" height="70" rx="8" class="svg-block-card"/>
+                <text x="737" y="78" text-anchor="middle" font-family="var(--font-sans)" font-size="11" font-weight="700" fill="var(--text-main)">Result Register</text>
+                <text x="737" y="94" text-anchor="middle" font-family="var(--font-mono)" font-size="9" fill="var(--text-muted)">[ACC 8-bit Latch]</text>
+                <text x="737" y="114" text-anchor="middle" font-family="var(--font-mono)" font-size="13" font-weight="800" fill="var(--secondary)" id="svgResultRegText">0 (0x00)</text>
+              </g>
+
+              <!-- Condition Flags (CCR) Block -->
+              <g id="svgBlockFlags">
+                <rect x="670" y="165" width="135" height="85" rx="8" class="svg-block-card"/>
+                <text x="737" y="188" text-anchor="middle" font-family="var(--font-sans)" font-size="11" font-weight="700" fill="var(--text-main)">Status Flags (CCR)</text>
+                <text x="690" y="214" font-family="var(--font-mono)" font-size="11" font-weight="700" fill="var(--text-muted)">C:<tspan id="svgFlagC" fill="var(--secondary)">0</tspan></text>
+                <text x="720" y="214" font-family="var(--font-mono)" font-size="11" font-weight="700" fill="var(--text-muted)">Z:<tspan id="svgFlagZ" fill="var(--secondary)">1</tspan></text>
+                <text x="750" y="214" font-family="var(--font-mono)" font-size="11" font-weight="700" fill="var(--text-muted)">N:<tspan id="svgFlagN" fill="var(--secondary)">0</tspan></text>
+                <text x="780" y="214" font-family="var(--font-mono)" font-size="11" font-weight="700" fill="var(--text-muted)">V:<tspan id="svgFlagV" fill="var(--secondary)">0</tspan></text>
+                <text x="737" y="238" text-anchor="middle" font-family="var(--font-mono)" font-size="9" fill="var(--text-subtle)" id="svgFlagStatus">Flags Valid</text>
+              </g>
+
+              <!-- Wires & Signals -->
+              <path id="wireA" d="M 160 67.5 L 270 67.5" class="svg-wire wire-active pulse-flow" marker-end="url(#arr-active)"/>
+              <text x="175" y="60" font-family="var(--font-mono)" font-size="10" font-weight="700" fill="var(--secondary)">A[7:0] /8</text>
+
+              <path id="wireB" d="M 160 172.5 L 215 172.5 L 215 130 L 270 130" class="svg-wire wire-active pulse-flow" marker-end="url(#arr-active)"/>
+              <text x="175" y="164" font-family="var(--font-mono)" font-size="10" font-weight="700" fill="var(--secondary)">B[7:0] /8</text>
+
+              <path id="wireDecCtrl" d="M 190 272.5 L 380 272.5 L 380 180" class="svg-wire wire-ctrl" marker-end="url(#arr-ctrl)"/>
+              <text x="290" y="266" font-family="var(--font-mono)" font-size="9" font-weight="700" fill="var(--primary)">ARITH_EN (ADD/SUB)</text>
+
+              <path id="wireArithMux" d="M 490 120 L 560 120" class="svg-wire wire-active pulse-flow" marker-end="url(#arr-active)"/>
+
+              <path id="wireMuxOut" d="M 610 130 L 640 130" class="svg-wire wire-active pulse-flow"/>
+              <text x="590" y="120" font-family="var(--font-mono)" font-size="9" font-weight="700" fill="var(--secondary)">ALU_OUT</text>
+
+              <circle cx="640" cy="130" r="3.5" class="junction-dot"/>
+
+              <path id="wireToReg" d="M 640 130 L 640 90 L 670 90" class="svg-wire wire-active" marker-end="url(#arr-active)"/>
+              <path id="wireToFlags" d="M 640 130 L 640 205 L 670 205" class="svg-wire wire-active" marker-end="url(#arr-active)"/>
+
+              <!-- Clean outer perimeter routing for REG_LOAD without crossing Flags block -->
+              <path id="wireRegLoad" d="M 190 288 L 818 288 L 818 90 L 805 90" class="svg-wire" stroke-dasharray="4 2" marker-end="url(#arr-idle)"/>
+              <text x="650" y="282" font-family="var(--font-mono)" font-size="9" fill="var(--text-muted)" id="svgTextRegLoad">REG_LOAD (HOLD)</text>
+            </svg>
+          </div>
+        </div>
+
+        <!-- SIX INTERACTIVE EXECUTION STAGES -->
+        <div class="stepper-container">
+          <div class="stepper-header-row">
+            <h3>Execution Flow — Six Interactive Stages</h3>
+            <span class="schematic-badge" id="currentStageBadge">STAGE 1: LOAD</span>
+          </div>
+
+          <div class="stage-track-grid">
+            <div class="stage-step-box stage-active" id="stage1" data-step="1">
+              <div class="stage-box-top">
+                <span class="stage-badge-num">1</span>
+                <span class="stage-name-lbl">LOAD</span>
+              </div>
+              <p class="stage-oneline-desc">Load inputs A and B into internal registers.</p>
+            </div>
+
+            <div class="stage-step-box" id="stage2" data-step="2">
+              <div class="stage-box-top">
+                <span class="stage-badge-num">2</span>
+                <span class="stage-name-lbl">DECODE</span>
+              </div>
+              <p class="stage-oneline-desc">Decode opcode (000 for ADD, 001 for SUB).</p>
+            </div>
+
+            <div class="stage-step-box" id="stage3" data-step="3">
+              <div class="stage-box-top">
+                <span class="stage-badge-num">3</span>
+                <span class="stage-name-lbl">ENABLE</span>
+              </div>
+              <p class="stage-oneline-desc">Enable 8-bit Adder/Subtractor core.</p>
+            </div>
+
+            <div class="stage-step-box" id="stage4" data-step="4">
+              <div class="stage-box-top">
+                <span class="stage-badge-num">4</span>
+                <span class="stage-name-lbl">COMPUTE</span>
+              </div>
+              <p class="stage-oneline-desc">Compute binary sum/difference with flags.</p>
+            </div>
+
+            <div class="stage-step-box" id="stage5" data-step="5">
+              <div class="stage-box-top">
+                <span class="stage-badge-num">5</span>
+                <span class="stage-name-lbl">FLAGS</span>
+              </div>
+              <p class="stage-oneline-desc">Evaluate CCR flags (C, Z, N, V).</p>
+            </div>
+
+            <div class="stage-step-box" id="stage6" data-step="6">
+              <div class="stage-box-top">
+                <span class="stage-badge-num">6</span>
+                <span class="stage-name-lbl">WRITE</span>
+              </div>
+              <p class="stage-oneline-desc">Latch result into Result Register [ACC].</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- EXPECTED OUTPUT AND RESULT PANEL -->
+        <div class="results-box">
+          <div class="schematic-top-bar" style="margin-bottom: 12px;">
+            <h2 style="font-size: 13.5px;">ALU Calculation Result &amp; Status Flags</h2>
+            <span class="schematic-badge" id="calcFormulaBadge">0 + 0 = 0</span>
+          </div>
+
+          <div class="results-content-grid">
+            
+            <!-- Output Comparison: Intermediate vs Committed -->
+            <div class="res-values-stack">
+              <div class="output-value-card">
+                <div class="out-card-tag">ALU Intermediate Output (Combinatorial Bus)</div>
+                <div class="out-numbers-row">
+                  <span class="out-dec-num" id="outAluDec">0</span>
+                  <span class="out-bin-num" id="outAluBin">00000000</span>
+                  <span class="out-hex-num" id="outAluHex">0x00</span>
+                </div>
+                <div class="out-card-status">Computed after Step 4 (COMPUTE) on shared bus.</div>
+              </div>
+
+              <div class="output-value-card card-committed">
+                <div class="out-card-tag">Committed Result Register [ACC]</div>
+                <div class="out-numbers-row">
+                  <span class="out-dec-num" id="outRegDec">0</span>
+                  <span class="out-bin-num" id="outRegBin">00000000</span>
+                  <span class="out-hex-num" id="outRegHex">0x00</span>
+                </div>
+                <div class="out-card-status" id="outCommitStatus">Committed output: Latched at Step 6 (WRITE).</div>
+              </div>
+            </div>
+
+            <!-- Status Flags Display (C, Z, N, V) -->
+            <div>
+              <div class="out-card-tag" style="margin-bottom: 8px;">Condition Flags Register (CCR)</div>
+              <div class="flags-sim-grid">
+                <div class="flag-chip-card" id="cardFlagC" title="Carry (C): 1 if unsigned addition overflows 255, or subtraction requires no borrow.">
+                  <span class="flg-letter">C</span>
+                  <span class="flg-digit" id="valFlagC">0</span>
+                  <span class="flg-title">Carry/Borrow</span>
+                </div>
+                <div class="flag-chip-card" id="cardFlagZ" title="Zero (Z): 1 when the 8-bit result equals 0x00.">
+                  <span class="flg-letter">Z</span>
+                  <span class="flg-digit" id="valFlagZ">1</span>
+                  <span class="flg-title">Zero</span>
+                </div>
+                <div class="flag-chip-card" id="cardFlagN" title="Negative (N): Equals bit 7 of the 8-bit result (signed two's complement sign).">
+                  <span class="flg-letter">N</span>
+                  <span class="flg-digit" id="valFlagN">0</span>
+                  <span class="flg-title">Sign (Bit 7)</span>
+                </div>
+                <div class="flag-chip-card" id="cardFlagV" title="Overflow (V): 1 when signed two's complement overflow occurs.">
+                  <span class="flg-letter">V</span>
+                  <span class="flg-digit" id="valFlagV">0</span>
+                  <span class="flg-title">Overflow</span>
+                </div>
+              </div>
+
+              <div class="flags-summary-statement" id="flagSummaryText">
+                Flags evaluation: No carry (C=0), Zero output (Z=1), Positive sign (N=0), No signed overflow (V=0).
+              </div>
+            </div>
+
+          </div>
+        </div>
+
+      </section>
+
+    </div>
+
+  </main>
+
+  <!-- =========================================================================
+       MODERN MODAL POPUP: CONFIGURE ALU & SET OPERANDS
+       ========================================================================= -->
+  <div class="modal-backdrop-screen" id="aluConfigModal">
+    <div class="modal-dialog-box" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+      
+      <div class="modal-top-bar">
+        <div class="modal-title-group">
+          <h2 id="modalTitle">Configure ALU Operands &amp; Operation</h2>
+          <p>Enter 8-bit register values and select an arithmetic operation to simulate.</p>
+        </div>
+        <button type="button" class="modal-close-icon" id="modalBtnClose" aria-label="Close modal">&times;</button>
+      </div>
+
+      <div class="modal-scroll-body">
+        
+        <!-- Register A Block in Modal -->
+        <div class="modal-input-block">
+          <div class="modal-input-header">
+            <label for="modalInputA" class="modal-input-label">Register A (8-bit, 0–255):</label>
+            <span class="modal-binary-badge" id="modalBinA">--------</span>
+          </div>
+          <div class="modal-field-stepper-row">
+            <button type="button" class="modal-stepper-btn" id="modalDecA" title="Decrement A">&minus;</button>
+            <input type="number" id="modalInputA" min="0" max="255" class="modal-num-input" placeholder="0–255">
+            <button type="button" class="modal-stepper-btn" id="modalIncA" title="Increment A">&plus;</button>
+          </div>
+          <div class="modal-err-text" id="modalErrA"></div>
+        </div>
+
+        <!-- Register B Block in Modal -->
+        <div class="modal-input-block">
+          <div class="modal-input-header">
+            <label for="modalInputB" class="modal-input-label">Register B (8-bit, 0–255):</label>
+            <span class="modal-binary-badge" id="modalBinB">--------</span>
+          </div>
+          <div class="modal-field-stepper-row">
+            <button type="button" class="modal-stepper-btn" id="modalDecB" title="Decrement B">&minus;</button>
+            <input type="number" id="modalInputB" min="0" max="255" class="modal-num-input" placeholder="0–255">
+            <button type="button" class="modal-stepper-btn" id="modalIncB" title="Increment B">&plus;</button>
+          </div>
+          <div class="modal-err-text" id="modalErrB"></div>
+        </div>
+
+        <!-- Operation Selection Grid in Modal -->
+        <div class="modal-ops-section">
+          <span class="modal-ops-title">Select Arithmetic Operation</span>
+          <div class="modal-ops-grid">
+            <div class="modal-op-item active-op-choice" data-op="ADD">
+              <div class="op-choice-left">
+                <span class="op-choice-code">000</span>
+                <span class="op-choice-name">ADD — Addition</span>
+              </div>
+              <span class="op-choice-formula">(A + B) mod 256</span>
+            </div>
+
+            <div class="modal-op-item" data-op="SUB">
+              <div class="op-choice-left">
+                <span class="op-choice-code">001</span>
+                <span class="op-choice-name">SUBTRACT — Subtraction</span>
+              </div>
+              <span class="op-choice-formula">(A - B) mod 256</span>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Modal Footer Action Buttons -->
+      <div class="modal-foot-actions">
+        <button type="button" class="btn btn-secondary" id="modalBtnCancel">Cancel</button>
+        <button type="button" class="btn btn-primary" id="modalBtnConfirm">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+          Confirm &amp; Execute
+        </button>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- =========================================================================
+       FOOTER
+       ========================================================================= -->
+  <footer class="site-footer">
+    <div class="footer-inner">
+      <div>8-bit Arithmetic Unit &bull; Computer Organization &amp; Architecture</div>
+      <div>Dedicated Fixed-Point Binary Arithmetic Simulator</div>
+    </div>
+  </footer>
+
+  <script src="arithmetic.js"></script>
+</body>
+</html>

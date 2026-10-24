@@ -1,0 +1,549 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Logic &amp; Shift Unit — 8-bit ALU Simulator</title>
+  <link rel="stylesheet" href="style.css">
+  <script src="theme.js"></script>
+</head>
+<body>
+
+  <!-- =========================================================================
+       NAVIGATION BAR
+       ========================================================================= -->
+  <nav class="site-nav">
+    <div class="nav-container">
+      <a href="index.html" class="brand-link">
+        <svg class="brand-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="15 18 9 12 15 6"></polyline>
+        </svg>
+        <span class="brand-name">8-bit ALU Simulator</span>
+      </a>
+
+      <div class="nav-right">
+        <div class="nav-links">
+          <a href="index.html" class="nav-item">Home</a>
+          <a href="arithmetic.html" class="nav-item">Arithmetic Unit</a>
+          <a href="logic.html" class="nav-item active">Logic &amp; Shift Unit</a>
+        </div>
+
+        <button type="button" class="theme-toggle-btn" aria-label="Toggle theme" title="Toggle theme">
+          <!-- Populated by theme.js -->
+        </button>
+      </div>
+    </div>
+  </nav>
+
+  <!-- =========================================================================
+       LOGIC & SHIFT UNIT SIMULATOR WORKSPACE
+       ========================================================================= -->
+  <main class="sim-container">
+
+    <header class="sim-page-header">
+      <h1>Logic &amp; Shift Unit Simulator</h1>
+      <p>Configure operands and logic/shift operation via popup, then follow the internal bitwise execution flow.</p>
+    </header>
+
+    <div class="sim-grid-layout">
+
+      <!-- =====================================================================
+           LEFT COLUMN: POPUP LAUNCHER & SIMULATION CONTROLS
+           ===================================================================== -->
+      <aside class="sim-left-panel">
+        
+        <!-- Main Simulation Trigger Button: Reopen popup anytime -->
+        <button type="button" class="btn-cta-main" id="btnStartAluModal">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+            <rect x="3" y="3" width="18" height="18" rx="3"></rect>
+            <path d="M8 12h8"></path>
+            <path d="M12 8v8"></path>
+          </svg>
+          Enter Registers &amp; Select Operation
+        </button>
+
+        <!-- Current Latched Configuration Card -->
+        <div class="sim-panel">
+          <div class="panel-header-title">
+            <span>Latched Configuration</span>
+            <button type="button" class="btn btn-secondary btn-sm" id="btnConfigureAlu" title="Reopen configuration popup">Configure ALU</button>
+          </div>
+
+          <div class="latched-display-card">
+            <div class="latched-reg-row">
+              <span class="latched-reg-lbl">Register A [7:0]</span>
+              <div class="latched-reg-values">
+                <span class="latched-dec" id="displayValA">0</span>
+                <span class="latched-bin" id="displayBinA">00000000</span>
+              </div>
+            </div>
+
+            <div class="latched-reg-row">
+              <span class="latched-reg-lbl">Register B [7:0]</span>
+              <div class="latched-reg-values">
+                <span class="latched-dec" id="displayValB">0</span>
+                <span class="latched-bin" id="displayBinB">00000000</span>
+              </div>
+            </div>
+
+            <div class="latched-reg-row">
+              <span class="latched-reg-lbl">Operation</span>
+              <span class="latched-op-pill" id="displayOpPill">010: AND — A &amp; B</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Simulation Sequencer Controls -->
+        <div class="sim-panel">
+          <div class="panel-header-title">
+            <span>Sequencer Controls</span>
+          </div>
+          <div class="controls-grid">
+            <button type="button" class="btn btn-primary btn-sm" id="btnStepForward" title="Advance by one micro-operation stage">
+              Step Forward &rarr;
+            </button>
+            <button type="button" class="btn btn-secondary btn-sm" id="btnPauseResume" title="Pause or Resume automated run" disabled>
+              Pause
+            </button>
+            <button type="button" class="btn btn-secondary btn-span-2" id="btnRunAll" title="Execute all 6 stages smoothly at readable pace">
+              Run All (Auto Sequence)
+            </button>
+            <button type="button" class="btn btn-secondary btn-span-2" id="btnReset" title="Reset simulator to clean initial state">
+              Reset
+            </button>
+          </div>
+        </div>
+
+      </aside>
+
+      <!-- =====================================================================
+           RIGHT COLUMN: DEDICATED LOGIC DIAGRAM, STEPPER, RESULTS
+           ===================================================================== -->
+      <section class="sim-right-panel">
+
+        <!-- DEDICATED LOGIC & SHIFT HARDWARE BLOCK DIAGRAM (SVG) -->
+        <div class="schematic-box">
+          <div class="schematic-top-bar">
+            <h2>8-bit Logic &amp; Shift Circuit &amp; Signal Flow</h2>
+            <span class="schematic-badge" id="schematicBadge">OPCODE: 010 (AND)</span>
+          </div>
+
+          <div class="svg-canvas-container">
+            <svg id="logicSvg" class="dedicated-svg" viewBox="0 0 880 380" preserveAspectRatio="xMidYMid meet">
+              <defs>
+                <marker id="arr-idle" viewBox="0 0 10 10" refX="7" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+                  <path d="M 0 1 L 9 5 L 0 9 z" fill="var(--wire-idle)" />
+                </marker>
+                <marker id="arr-active" viewBox="0 0 10 10" refX="7" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+                  <path d="M 0 1 L 9 5 L 0 9 z" fill="var(--wire-active)" />
+                </marker>
+                <marker id="arr-ctrl" viewBox="0 0 10 10" refX="7" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+                  <path d="M 0 1 L 9 5 L 0 9 z" fill="var(--wire-ctrl)" />
+                </marker>
+              </defs>
+
+              <!-- Register A -->
+              <g id="svgBlockA">
+                <rect x="25" y="38" width="130" height="55" rx="8" class="svg-block-card"/>
+                <text x="90" y="60" text-anchor="middle" font-family="var(--font-sans)" font-size="12" font-weight="700" fill="var(--text-main)">Register A [7:0]</text>
+                <text x="90" y="78" text-anchor="middle" font-family="var(--font-mono)" font-size="12" font-weight="700" fill="var(--secondary)" id="svgValA">0 (0x00)</text>
+              </g>
+
+              <!-- Register B -->
+              <g id="svgBlockB">
+                <rect x="25" y="148" width="130" height="55" rx="8" class="svg-block-card" id="svgRectB"/>
+                <text x="90" y="170" text-anchor="middle" font-family="var(--font-sans)" font-size="12" font-weight="700" fill="var(--text-main)">Register B [7:0]</text>
+                <text x="90" y="188" text-anchor="middle" font-family="var(--font-mono)" font-size="12" font-weight="700" fill="var(--secondary)" id="svgValB">0 (0x00)</text>
+              </g>
+
+              <!-- Opcode / Control Decoder -->
+              <g id="svgBlockDecoder">
+                <rect x="25" y="258" width="150" height="55" rx="8" class="svg-block-card"/>
+                <text x="100" y="280" text-anchor="middle" font-family="var(--font-sans)" font-size="11" font-weight="700" fill="var(--text-main)">Opcode Decoder</text>
+                <text x="100" y="298" text-anchor="middle" font-family="var(--font-mono)" font-size="11" font-weight="700" fill="var(--primary)" id="svgOpcodeText">OP = 010 (AND)</text>
+              </g>
+
+              <!-- Parallel Functional Blocks in Logic Unit (Centers at y = 40, 94, 148, 202, 256, 310) -->
+              <g id="gateBlockAND" class="svg-gate-block svg-active-unit">
+                <rect x="270" y="20" width="140" height="40" rx="6" class="svg-block-card"/>
+                <text x="340" y="44" text-anchor="middle" font-family="var(--font-mono)" font-size="11.5" font-weight="700" fill="var(--text-main)">AND Array [7:0]</text>
+              </g>
+
+              <g id="gateBlockOR" class="svg-gate-block">
+                <rect x="270" y="74" width="140" height="40" rx="6" class="svg-block-card"/>
+                <text x="340" y="98" text-anchor="middle" font-family="var(--font-mono)" font-size="11.5" font-weight="700" fill="var(--text-main)">OR Array [7:0]</text>
+              </g>
+
+              <g id="gateBlockXOR" class="svg-gate-block">
+                <rect x="270" y="128" width="140" height="40" rx="6" class="svg-block-card"/>
+                <text x="340" y="152" text-anchor="middle" font-family="var(--font-mono)" font-size="11.5" font-weight="700" fill="var(--text-main)">XOR Array [7:0]</text>
+              </g>
+
+              <g id="gateBlockNOT" class="svg-gate-block">
+                <rect x="270" y="182" width="140" height="40" rx="6" class="svg-block-card"/>
+                <text x="340" y="206" text-anchor="middle" font-family="var(--font-mono)" font-size="11.5" font-weight="700" fill="var(--text-main)">NOT Inverter (~A)</text>
+              </g>
+
+              <g id="gateBlockSHL" class="svg-gate-block">
+                <rect x="270" y="236" width="140" height="40" rx="6" class="svg-block-card"/>
+                <text x="340" y="260" text-anchor="middle" font-family="var(--font-mono)" font-size="11.5" font-weight="700" fill="var(--text-main)">Shift Left (A &lt;&lt; 1)</text>
+              </g>
+
+              <g id="gateBlockSHR" class="svg-gate-block">
+                <rect x="270" y="290" width="140" height="40" rx="6" class="svg-block-card"/>
+                <text x="340" y="314" text-anchor="middle" font-family="var(--font-mono)" font-size="11.5" font-weight="700" fill="var(--text-main)">Shift Right (A &gt;&gt; 1)</text>
+              </g>
+
+              <!-- 6-to-1 Operation Multiplexer (MUX) -->
+              <g id="svgBlockMux">
+                <polygon points="490,15 550,50 550,300 490,335" class="svg-block-card"/>
+                <text x="520" y="175" text-anchor="middle" font-family="var(--font-sans)" font-size="10.5" font-weight="800" fill="var(--text-main)" transform="rotate(-90 520 175)">LOGIC MUX (6:1)</text>
+              </g>
+
+              <!-- Result Register [ACC] -->
+              <g id="svgBlockRegResult">
+                <rect x="670" y="60" width="140" height="70" rx="8" class="svg-block-card"/>
+                <text x="740" y="82" text-anchor="middle" font-family="var(--font-sans)" font-size="11" font-weight="700" fill="var(--text-main)">Result Register</text>
+                <text x="740" y="98" text-anchor="middle" font-family="var(--font-mono)" font-size="9" fill="var(--text-muted)">[ACC 8-bit Latch]</text>
+                <text x="740" y="118" text-anchor="middle" font-family="var(--font-mono)" font-size="13" font-weight="800" fill="var(--secondary)" id="svgResultRegText">0 (0x00)</text>
+              </g>
+
+              <!-- Condition Flags (CCR) Block -->
+              <g id="svgBlockFlags">
+                <rect x="670" y="175" width="140" height="90" rx="8" class="svg-block-card"/>
+                <text x="740" y="198" text-anchor="middle" font-family="var(--font-sans)" font-size="11" font-weight="700" fill="var(--text-main)">Status Flags (CCR)</text>
+                <text x="692" y="225" font-family="var(--font-mono)" font-size="11" font-weight="700" fill="var(--text-muted)">C:<tspan id="svgFlagC" fill="var(--secondary)">0</tspan></text>
+                <text x="724" y="225" font-family="var(--font-mono)" font-size="11" font-weight="700" fill="var(--text-muted)">Z:<tspan id="svgFlagZ" fill="var(--secondary)">1</tspan></text>
+                <text x="756" y="225" font-family="var(--font-mono)" font-size="11" font-weight="700" fill="var(--text-muted)">N:<tspan id="svgFlagN" fill="var(--secondary)">0</tspan></text>
+                <text x="788" y="225" font-family="var(--font-mono)" font-size="11" font-weight="700" fill="var(--text-muted)">V:<tspan id="svgFlagV" fill="var(--secondary)">0</tspan></text>
+                <text x="740" y="248" text-anchor="middle" font-family="var(--font-mono)" font-size="9" fill="var(--text-subtle)" id="svgFlagStatus">Flags Valid</text>
+              </g>
+
+              <!-- Register A Bus: Leaves at (155, 65.5), runs to vertical trunk at x = 210 (y = 34 to 316) -->
+              <path id="wireA_trunk" d="M 155 65.5 L 210 65.5 M 210 34 L 210 316" class="svg-wire wire-active pulse-flow"/>
+              <text x="165" y="58" font-family="var(--font-mono)" font-size="10" font-weight="700" fill="var(--secondary)">A[7:0]</text>
+              
+              <!-- Register A Active Branch into Active Gate -->
+              <path id="wireA_branch" d="M 210 34 L 270 34" class="svg-wire wire-active pulse-flow" marker-end="url(#arr-active)"/>
+
+              <!-- Register B Bus: Leaves at (155, 175.5), runs to vertical trunk at x = 235 (only feeds AND, OR, XOR: y = 34 to 154) -->
+              <path id="wireB_trunk" d="M 155 175.5 L 235 175.5 M 235 34 L 235 154" class="svg-wire wire-active pulse-flow"/>
+              <text x="165" y="168" font-family="var(--font-mono)" font-size="10" font-weight="700" fill="var(--secondary)">B[7:0]</text>
+
+              <!-- Register B Active Branch into Active Gate (Hidden for NOT, SHL, SHR) -->
+              <path id="wireB_branch" d="M 235 46 L 270 46" class="svg-wire wire-active pulse-flow" marker-end="url(#arr-active)"/>
+
+              <!-- 6 Idle Channel Lines from Functional Gates into 6:1 MUX (Exact coordinates 40, 94, 148, 202, 256, 310) -->
+              <path class="svg-wire" d="M 410 40 L 490 40" marker-end="url(#arr-idle)"/>
+              <path class="svg-wire" d="M 410 94 L 490 94" marker-end="url(#arr-idle)"/>
+              <path class="svg-wire" d="M 410 148 L 490 148" marker-end="url(#arr-idle)"/>
+              <path class="svg-wire" d="M 410 202 L 490 202" marker-end="url(#arr-idle)"/>
+              <path class="svg-wire" d="M 410 256 L 490 256" marker-end="url(#arr-idle)"/>
+              <path class="svg-wire" d="M 410 310 L 490 310" marker-end="url(#arr-idle)"/>
+
+              <!-- Active Highlighted Wire from Active Gate into MUX -->
+              <path id="wireGateToMux" d="M 410 40 L 490 40" class="svg-wire wire-active pulse-flow" marker-end="url(#arr-active)"/>
+
+              <!-- MUX Selection Control Wire: Enters bottom control port of MUX cleanly without slicing any blocks -->
+              <path id="wireDecMux" d="M 175 280 L 195 280 L 195 348 L 520 348 L 520 318" class="svg-wire wire-ctrl" marker-end="url(#arr-ctrl)"/>
+              <text x="350" y="342" font-family="var(--font-mono)" font-size="9" font-weight="700" fill="var(--primary)">MUX_SEL[2:0]</text>
+
+              <!-- MUX Output Bus -->
+              <path id="wireMuxOut" d="M 550 175 L 610 175" class="svg-wire wire-active pulse-flow"/>
+              <text x="558" y="166" font-family="var(--font-mono)" font-size="9" font-weight="700" fill="var(--secondary)">LOGIC_OUT /8</text>
+
+              <!-- Bus Junction Point -->
+              <circle cx="610" cy="175" r="3.5" class="junction-dot"/>
+
+              <!-- Branch to Result Register (Hits exact dead-center at x=670, y=95) -->
+              <path id="wireToReg" d="M 610 175 L 610 95 L 670 95" class="svg-wire wire-active" marker-end="url(#arr-active)"/>
+              
+              <!-- Branch to Flags Register (Hits exact dead-center at x=670, y=220) -->
+              <path id="wireToFlags" d="M 610 175 L 610 220 L 670 220" class="svg-wire wire-active" marker-end="url(#arr-active)"/>
+
+              <!-- Clean Outer Routing for REG_LOAD Control Signal without slicing Gates, MUX, or Flags -->
+              <path id="wireRegLoad" d="M 175 296 L 185 296 L 185 362 L 835 362 L 835 95 L 810 95" class="svg-wire" stroke-dasharray="4 2" marker-end="url(#arr-idle)"/>
+              <text x="680" y="356" font-family="var(--font-mono)" font-size="9" fill="var(--text-muted)" id="svgTextRegLoad">REG_LOAD (HOLD)</text>
+            </svg>
+          </div>
+        </div>
+
+        <!-- SIX INTERACTIVE EXECUTION STAGES -->
+        <div class="stepper-container">
+          <div class="stepper-header-row">
+            <h3>Execution Flow — Six Interactive Stages</h3>
+            <span class="schematic-badge" id="currentStageBadge">STAGE 1: LOAD</span>
+          </div>
+
+          <div class="stage-track-grid">
+            <div class="stage-step-box stage-active" id="stage1" data-step="1">
+              <div class="stage-box-top">
+                <span class="stage-badge-num">1</span>
+                <span class="stage-name-lbl">LOAD</span>
+              </div>
+              <p class="stage-oneline-desc">Load inputs A and B into internal registers.</p>
+            </div>
+
+            <div class="stage-step-box" id="stage2" data-step="2">
+              <div class="stage-box-top">
+                <span class="stage-badge-num">2</span>
+                <span class="stage-name-lbl">DECODE</span>
+              </div>
+              <p class="stage-oneline-desc">Decode opcode into MUX select &amp; enable signals.</p>
+            </div>
+
+            <div class="stage-step-box" id="stage3" data-step="3">
+              <div class="stage-box-top">
+                <span class="stage-badge-num">3</span>
+                <span class="stage-name-lbl">ENABLE</span>
+              </div>
+              <p class="stage-oneline-desc">Enable the selected logic array or shifter.</p>
+            </div>
+
+            <div class="stage-step-box" id="stage4" data-step="4">
+              <div class="stage-box-top">
+                <span class="stage-badge-num">4</span>
+                <span class="stage-name-lbl">COMPUTE</span>
+              </div>
+              <p class="stage-oneline-desc">Gate array executes bitwise boolean computation.</p>
+            </div>
+
+            <div class="stage-step-box" id="stage5" data-step="5">
+              <div class="stage-box-top">
+                <span class="stage-badge-num">5</span>
+                <span class="stage-name-lbl">FLAGS</span>
+              </div>
+              <p class="stage-oneline-desc">Evaluate CCR flags (C, Z, N, V).</p>
+            </div>
+
+            <div class="stage-step-box" id="stage6" data-step="6">
+              <div class="stage-box-top">
+                <span class="stage-badge-num">6</span>
+                <span class="stage-name-lbl">WRITE</span>
+              </div>
+              <p class="stage-oneline-desc">Latch result into Result Register [ACC].</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- BIT-BY-BIT CALCULATION BREAKDOWN -->
+        <div class="bitwise-math-card">
+          <div class="schematic-top-bar" style="margin-bottom: 6px;">
+            <h2 style="font-size: 13.5px;" id="bitwiseCardTitle">Bitwise Computation Breakdown</h2>
+            <span class="schematic-badge" id="calcFormulaBadge">AND: 0 (0x00)</span>
+          </div>
+          <p style="font-size: 11px; color: var(--text-muted);" id="bitwiseExplanation">
+            Bitwise AND: each bit Ri = Ai AND Bi. Output bit is 1 only when both corresponding input bits are 1.
+          </p>
+
+          <table class="bitwise-math-table">
+            <thead>
+              <tr>
+                <th style="text-align: left;">Operand</th>
+                <th>Bit 7</th><th>Bit 6</th><th>Bit 5</th><th>Bit 4</th>
+                <th>Bit 3</th><th>Bit 2</th><th>Bit 1</th><th>Bit 0</th>
+                <th>Hex</th><th>Dec</th>
+              </tr>
+            </thead>
+            <tbody id="bitwiseTableBody">
+              <!-- Dynamically rendered -->
+            </tbody>
+          </table>
+        </div>
+
+        <!-- EXPECTED OUTPUT AND RESULT PANEL -->
+        <div class="results-box">
+          <div class="schematic-top-bar" style="margin-bottom: 12px;">
+            <h2 style="font-size: 13.5px;">ALU Calculation Result &amp; Status Flags</h2>
+          </div>
+
+          <div class="results-content-grid">
+            
+            <!-- Output Comparison: Intermediate vs Committed -->
+            <div class="res-values-stack">
+              <div class="output-value-card">
+                <div class="out-card-tag">ALU Intermediate Output (Combinatorial Bus)</div>
+                <div class="out-numbers-row">
+                  <span class="out-dec-num" id="outAluDec">0</span>
+                  <span class="out-bin-num" id="outAluBin">00000000</span>
+                  <span class="out-hex-num" id="outAluHex">0x00</span>
+                </div>
+                <div class="out-card-status">Computed after Step 4 (COMPUTE) on shared bus.</div>
+              </div>
+
+              <div class="output-value-card card-committed">
+                <div class="out-card-tag">Committed Result Register [ACC]</div>
+                <div class="out-numbers-row">
+                  <span class="out-dec-num" id="outRegDec">0</span>
+                  <span class="out-bin-num" id="outRegBin">00000000</span>
+                  <span class="out-hex-num" id="outRegHex">0x00</span>
+                </div>
+                <div class="out-card-status" id="outCommitStatus">Committed output: Latched at Step 6 (WRITE).</div>
+              </div>
+            </div>
+
+            <!-- Status Flags Display (C, Z, N, V) -->
+            <div>
+              <div class="out-card-tag" style="margin-bottom: 8px;">Condition Flags Register (CCR)</div>
+              <div class="flags-sim-grid">
+                <div class="flag-chip-card" id="cardFlagC" title="Carry (C): Holds the shifted-out bit for SHL/SHR, 0 for logical operations.">
+                  <span class="flg-letter">C</span>
+                  <span class="flg-digit" id="valFlagC">0</span>
+                  <span class="flg-title">Shift-Out</span>
+                </div>
+                <div class="flag-chip-card" id="cardFlagZ" title="Zero (Z): 1 when the 8-bit result equals 0x00.">
+                  <span class="flg-letter">Z</span>
+                  <span class="flg-digit" id="valFlagZ">1</span>
+                  <span class="flg-title">Zero</span>
+                </div>
+                <div class="flag-chip-card" id="cardFlagN" title="Negative (N): Equals bit 7 of the 8-bit result.">
+                  <span class="flg-letter">N</span>
+                  <span class="flg-digit" id="valFlagN">0</span>
+                  <span class="flg-title">Sign (Bit 7)</span>
+                </div>
+                <div class="flag-chip-card" id="cardFlagV" title="Overflow (V): 0 for logical and shift operations in this model.">
+                  <span class="flg-letter">V</span>
+                  <span class="flg-digit" id="valFlagV">0</span>
+                  <span class="flg-title">Overflow</span>
+                </div>
+              </div>
+
+              <div class="flags-summary-statement" id="flagSummaryText">
+                Flags evaluation: No shifted-out carry (C=0), Zero output (Z=1), Bit 7 is 0 (N=0), Overflow is 0 for logic mode.
+              </div>
+            </div>
+
+          </div>
+        </div>
+
+      </section>
+
+    </div>
+
+  </main>
+
+  <!-- =========================================================================
+       MODERN MODAL POPUP: CONFIGURE ALU & SET OPERANDS (LOGIC & SHIFT)
+       ========================================================================= -->
+  <div class="modal-backdrop-screen" id="aluConfigModal">
+    <div class="modal-dialog-box" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+      
+      <div class="modal-top-bar">
+        <div class="modal-title-group">
+          <h2 id="modalTitle">Configure Logic &amp; Shift Operands</h2>
+          <p>Enter 8-bit register values and select a bitwise or shift operation.</p>
+        </div>
+        <button type="button" class="modal-close-icon" id="modalBtnClose" aria-label="Close modal">&times;</button>
+      </div>
+
+      <div class="modal-scroll-body">
+        
+        <!-- Register A Block in Modal -->
+        <div class="modal-input-block">
+          <div class="modal-input-header">
+            <label for="modalInputA" class="modal-input-label">Register A (8-bit, 0–255):</label>
+            <span class="modal-binary-badge" id="modalBinA">--------</span>
+          </div>
+          <div class="modal-field-stepper-row">
+            <button type="button" class="modal-stepper-btn" id="modalDecA" title="Decrement A">&minus;</button>
+            <input type="number" id="modalInputA" min="0" max="255" class="modal-num-input" placeholder="0–255">
+            <button type="button" class="modal-stepper-btn" id="modalIncA" title="Increment A">&plus;</button>
+          </div>
+          <div class="modal-err-text" id="modalErrA"></div>
+        </div>
+
+        <!-- Register B Block in Modal -->
+        <div class="modal-input-block" id="modalBlockB">
+          <div class="modal-input-header">
+            <label for="modalInputB" class="modal-input-label">Register B (8-bit, 0–255):</label>
+            <span class="modal-binary-badge" id="modalBinB">--------</span>
+          </div>
+          <div class="modal-field-stepper-row">
+            <button type="button" class="modal-stepper-btn" id="modalDecB" title="Decrement B">&minus;</button>
+            <input type="number" id="modalInputB" min="0" max="255" class="modal-num-input" placeholder="0–255">
+            <button type="button" class="modal-stepper-btn" id="modalIncB" title="Increment B">&plus;</button>
+          </div>
+          <div class="modal-err-text" id="modalErrB"></div>
+        </div>
+
+        <!-- Operation Selection Grid in Modal -->
+        <div class="modal-ops-section">
+          <span class="modal-ops-title">Select Logic / Shift Operation</span>
+          <div class="modal-ops-grid">
+            <div class="modal-op-item active-op-choice" data-op="AND">
+              <div class="op-choice-left">
+                <span class="op-choice-code">010</span>
+                <span class="op-choice-name">AND — Bitwise AND</span>
+              </div>
+              <span class="op-choice-formula">A &amp; B</span>
+            </div>
+
+            <div class="modal-op-item" data-op="OR">
+              <div class="op-choice-left">
+                <span class="op-choice-code">011</span>
+                <span class="op-choice-name">OR — Bitwise OR</span>
+              </div>
+              <span class="op-choice-formula">A | B</span>
+            </div>
+
+            <div class="modal-op-item" data-op="XOR">
+              <div class="op-choice-left">
+                <span class="op-choice-code">100</span>
+                <span class="op-choice-name">XOR — Bitwise XOR</span>
+              </div>
+              <span class="op-choice-formula">A ^ B</span>
+            </div>
+
+            <div class="modal-op-item" data-op="NOT">
+              <div class="op-choice-left">
+                <span class="op-choice-code">101</span>
+                <span class="op-choice-name">NOT — Bitwise Invert</span>
+              </div>
+              <span class="op-choice-formula">(~A) &amp; 255</span>
+            </div>
+
+            <div class="modal-op-item" data-op="SHL">
+              <div class="op-choice-left">
+                <span class="op-choice-code">110</span>
+                <span class="op-choice-name">SHIFT LEFT</span>
+              </div>
+              <span class="op-choice-formula">(A &lt;&lt; 1) &amp; 255</span>
+            </div>
+
+            <div class="modal-op-item" data-op="SHR">
+              <div class="op-choice-left">
+                <span class="op-choice-code">111</span>
+                <span class="op-choice-name">SHIFT RIGHT</span>
+              </div>
+              <span class="op-choice-formula">A &gt;&gt; 1</span>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Modal Footer Action Buttons -->
+      <div class="modal-foot-actions">
+        <button type="button" class="btn btn-secondary" id="modalBtnCancel">Cancel</button>
+        <button type="button" class="btn btn-primary" id="modalBtnConfirm">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+          Confirm &amp; Execute
+        </button>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- =========================================================================
+       FOOTER
+       ========================================================================= -->
+  <footer class="site-footer">
+    <div class="footer-inner">
+      <div>8-bit Logic &amp; Shift Unit &bull; Computer Organization &amp; Architecture</div>
+      <div>Dedicated Bitwise Boolean &amp; Barrel Shifter Simulator</div>
+    </div>
+  </footer>
+
+  <script src="logic.js"></script>
+</body>
+</html>
